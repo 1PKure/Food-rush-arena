@@ -7,10 +7,15 @@ public class PlayerMovement : NetworkBehaviour
     [SerializeField] private float moveSpeed = 5f;
 
     [Networked] private float CurrentMoveSpeed { get; set; }
+    [Networked] public int Score { get; private set; }
 
     public override void Spawned()
     {
-        CurrentMoveSpeed = moveSpeed;
+        if (Object.HasStateAuthority)
+        {
+            CurrentMoveSpeed = moveSpeed;
+            Score = 0;
+        }
     }
 
     public override void FixedUpdateNetwork()
@@ -46,6 +51,16 @@ public class PlayerMovement : NetworkBehaviour
         }
 
         return NetworkRaceManager.Instance.CanPlayersMove;
+    }
+
+    public void AddScore(int amount)
+    {
+        if (!Object.HasStateAuthority)
+        {
+            return;
+        }
+
+        Score += amount;
     }
 
     public void ApplySpeedBoost(float multiplier, float duration)
