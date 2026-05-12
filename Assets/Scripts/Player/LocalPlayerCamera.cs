@@ -7,7 +7,7 @@ public class LocalPlayerCamera : NetworkBehaviour
     [SerializeField] private Camera playerCamera;
     [SerializeField] private Vector3 cameraOffset = new Vector3(0f, 8f, -7f);
     [SerializeField] private Vector3 cameraRotation = new Vector3(50f, 0f, 0f);
-    [SerializeField] private float followSmoothness = 10f;
+    [SerializeField] private float followSmoothness = 12f;
 
     private bool isCameraActive;
 
@@ -45,7 +45,10 @@ public class LocalPlayerCamera : NetworkBehaviour
             return;
         }
 
+        playerCamera.transform.SetParent(null);
+
         playerCamera.gameObject.SetActive(true);
+        playerCamera.transform.position = transform.position + cameraOffset;
         playerCamera.transform.rotation = Quaternion.Euler(cameraRotation);
 
         isCameraActive = true;
@@ -77,5 +80,13 @@ public class LocalPlayerCamera : NetworkBehaviour
         );
 
         playerCamera.transform.rotation = Quaternion.Euler(cameraRotation);
+    }
+
+    public override void Despawned(NetworkRunner runner, bool hasState)
+    {
+        if (playerCamera != null)
+        {
+            Destroy(playerCamera.gameObject);
+        }
     }
 }

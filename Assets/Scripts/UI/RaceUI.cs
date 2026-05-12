@@ -10,7 +10,7 @@ public class RaceUI : MonoBehaviour
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private Button backToLobbyButton;
-
+    [SerializeField] private TMP_Text feedbackText;
     private PlayerMovement localPlayer;
     private bool isLeavingRoom;
 
@@ -21,7 +21,13 @@ public class RaceUI : MonoBehaviour
             backToLobbyButton.onClick.RemoveAllListeners();
             backToLobbyButton.onClick.AddListener(BackToLobby);
         }
-
+        
+        if (feedbackText != null)
+        {
+            feedbackText.text = string.Empty;
+            feedbackText.gameObject.SetActive(false);
+        }
+        
         SetCountdownText(string.Empty);
         SetStatusText("Waiting for players...");
         SetTimerText(string.Empty);
@@ -158,5 +164,34 @@ public class RaceUI : MonoBehaviour
         }
 
         FusionLauncher.Instance.LeaveRoom();
+    }
+    private Coroutine feedbackRoutine;
+
+    public void ShowTemporaryMessage(string message)
+    {
+        if (feedbackText == null)
+        {
+            return;
+        }
+
+        if (feedbackRoutine != null)
+        {
+            StopCoroutine(feedbackRoutine);
+        }
+
+        feedbackRoutine = StartCoroutine(ShowTemporaryMessageRoutine(message));
+    }
+
+    private System.Collections.IEnumerator ShowTemporaryMessageRoutine(string message)
+    {
+        feedbackText.text = message;
+        feedbackText.gameObject.SetActive(true);
+
+        yield return new WaitForSeconds(1.5f);
+
+        feedbackText.text = string.Empty;
+        feedbackText.gameObject.SetActive(false);
+
+        feedbackRoutine = null;
     }
 }

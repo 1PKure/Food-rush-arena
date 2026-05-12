@@ -78,15 +78,15 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
         runner.ProvideInput = false;
         runner.AddCallbacks(this);
 
-        StartGameResult result = await runner.JoinSessionLobby(SessionLobby.Shared);
+        StartGameResult result = await runner.JoinSessionLobby(SessionLobby.ClientServer);
 
         if (!result.Ok)
         {
-            Debug.LogError($"Failed to join shared lobby: {result.ShutdownReason}");
+            Debug.LogError($"Failed to join client-server lobby: {result.ShutdownReason}");
             return;
         }
 
-        Debug.Log("Joined shared lobby successfully.");
+        Debug.Log("Joined client-server lobby successfully.");
     }
 
     private async Task CreateGameRunnerAndStart(string roomName)
@@ -115,7 +115,7 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
         StartGameResult result = await runner.StartGame(new StartGameArgs
         {
-            GameMode = GameMode.Shared,
+            GameMode = GameMode.AutoHostOrClient,
             SessionName = roomName,
             Scene = sceneInfo,
             SceneManager = sceneManager,
@@ -139,7 +139,7 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             return;
         }
 
-        Debug.Log($"Connected to room: {roomName}");
+        Debug.Log($"Connected to room: {roomName} | GameMode: {runner.GameMode} | IsServer: {runner.IsServer}");
     }
 
     private async Task DestroyCurrentRunner()
@@ -252,26 +252,40 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
-        Debug.Log($"Player joined: {player}");
+        Debug.Log($"[Fusion] Player joined: {player} | IsServer: {runner.IsServer}");
 
-        if (player == runner.LocalPlayer)
+        if (!runner.IsServer)
         {
-            Vector3 spawnPosition = GetSpawnPosition(player);
-
-            NetworkObject playerObject = runner.Spawn(
-                playerPrefab,
-                spawnPosition,
-                Quaternion.identity,
-                player
-            );
-
-            spawnedPlayers[player] = playerObject;
+            return;
         }
+
+        if (spawnedPlayers.ContainsKey(player))
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = GetSpawnPosition(player);
+
+        NetworkObject playerObject = runner.Spawn(
+            playerPrefab,
+            spawnPosition,
+            Quaternion.identity,
+            player
+        );
+
+        spawnedPlayers[player] = playerObject;
+
+        Debug.Log($"[Fusion] Spawned player object for {player} at {spawnPosition}");
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
-        Debug.Log($"Player left: {player}");
+        Debug.Log($"[Fusion] Player left: {player} | IsServer: {runner.IsServer}");
+
+        if (!runner.IsServer)
+        {
+            return;
+        }
 
         if (spawnedPlayers.TryGetValue(player, out NetworkObject playerObject))
         {
@@ -286,7 +300,7 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
     private Vector3 GetSpawnPosition(PlayerRef player)
     {
-        int index = player.RawEncoded % maxPlayers;
+        int index = Mathf.Abs(player.RawEncoded) % maxPlayers;
         float spacing = 2.5f;
 
         return new Vector3(index * spacing, 0.5f, 0f);
@@ -324,7 +338,10 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
         Debug.Log($"[Fusion] Shutdown: {shutdownReason}");
     }
 
-    public void OnConnectedToServer(NetworkRunner runner) { }
+    public void OnConnectedToServer(NetworkRunner runner)
+    {
+        Debug.Log("[Fusion] Connected to server.");
+    }
 
     public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
     {

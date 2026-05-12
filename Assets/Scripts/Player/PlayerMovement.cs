@@ -1,13 +1,21 @@
 using Fusion;
 using UnityEngine;
 
+[RequireComponent(typeof(NetworkCharacterController))]
 public class PlayerMovement : NetworkBehaviour
 {
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
 
+    private NetworkCharacterController networkCharacterController;
+
     [Networked] private float CurrentMoveSpeed { get; set; }
     [Networked] public int Score { get; private set; }
+
+    private void Awake()
+    {
+        networkCharacterController = GetComponent<NetworkCharacterController>();
+    }
 
     public override void Spawned()
     {
@@ -16,6 +24,8 @@ public class PlayerMovement : NetworkBehaviour
             CurrentMoveSpeed = moveSpeed;
             Score = 0;
         }
+
+        Debug.Log($"[PlayerMovement] Spawned | InputAuthority: {Object.InputAuthority} | HasInputAuthority: {Object.HasInputAuthority} | HasStateAuthority: {Object.HasStateAuthority}");
     }
 
     public override void FixedUpdateNetwork()
@@ -25,26 +35,28 @@ public class PlayerMovement : NetworkBehaviour
             return;
         }
 
-        if (GetInput(out PlayerInputData inputData))
+        if (!GetInput(out PlayerInputData inputData))
         {
-            Vector3 direction = new Vector3(inputData.Move.x, 0f, inputData.Move.y);
-
-            if (direction.sqrMagnitude > 1f)
-            {
-                direction.Normalize();
-            }
-
-            transform.position += direction * CurrentMoveSpeed * Runner.DeltaTime;
+            return;
         }
+
+        Vector3 direction = new Vector3(inputData.Move.x, 0f, inputData.Move.y);
+
+        if (direction.sqrMagnitude < 0.01f)
+        {
+            return;
+        }
+
+        if (direction.sqrMagnitude > 1f)
+        {
+            direction.Normalize();
+        }
+
+        networkCharacterController.Move(direction);
     }
 
     private bool CanMove()
     {
-        if (!Object.HasInputAuthority)
-        {
-            return false;
-        }
-
         if (NetworkRaceManager.Instance == null)
         {
             return false;
@@ -55,12 +67,29 @@ public class PlayerMovement : NetworkBehaviour
 
     public void AddScore(int amount)
     {
+        if (Object.HasStateAuthority)
+        {
+            Score += amount;
+            return;
+        }
+
+        RPC_RequestAddScore(amount);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    private void RPC_RequestAddScore(int amount)
+    {
+        Score += amount;
+    }
+
+    public void ResetScore()
+    {
         if (!Object.HasStateAuthority)
         {
             return;
         }
 
-        Score += amount;
+        Score = 0;
     }
 
     public void ApplySpeedBoost(float multiplier, float duration)

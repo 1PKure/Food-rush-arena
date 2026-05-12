@@ -19,6 +19,7 @@ public class NetworkRaceManager : NetworkBehaviour
     [Networked] public TickTimer RaceTimer { get; private set; }
     [Networked] public int WinnerRawEncoded { get; private set; }
     [Networked] public int WinningScore { get; private set; }
+    [Networked] public TickTimer GoMessageTimer { get; private set; }
 
     private RaceState lastVisualState;
     private int lastCountdownValue = -1;
@@ -131,6 +132,9 @@ public class NetworkRaceManager : NetworkBehaviour
 
         CurrentState = RaceState.Racing;
         RaceTimer = TickTimer.CreateFromSeconds(Runner, raceDuration);
+        GoMessageTimer = TickTimer.CreateFromSeconds(Runner, 1.25f);
+
+        CloseCurrentSession();
 
         Debug.Log("[RaceManager] Race started.");
     }
@@ -143,6 +147,36 @@ public class NetworkRaceManager : NetworkBehaviour
         }
     }
 
+    private void CloseCurrentSession()
+    {
+        if (!Runner.IsServer)
+        {
+            return;
+        }
+
+        if (Runner.SessionInfo == null)
+        {
+            return;
+        }
+
+        Runner.SessionInfo.IsOpen = false;
+        Runner.SessionInfo.IsVisible = false;
+
+        Debug.Log("[RaceManager] Session closed after race start.");
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_NotifyMatchFinished(int winnerRawEncoded, int winningScore)
+    {
+        Debug.Log($"[RaceManager] Match finished. Winner: Player {winnerRawEncoded} | Score: {winningScore}");
+
+        RaceUI raceUI = FindFirstObjectByType<RaceUI>();
+
+        if (raceUI != null)
+        {
+            raceUI.ShowTemporaryMessage($"Game Finished!");
+        }
+    }
     private void FinishRaceByTime()
     {
         if (CurrentState != RaceState.Racing)
@@ -182,6 +216,8 @@ public class NetworkRaceManager : NetworkBehaviour
             WinningScore = 0;
         }
 
+        CloseCurrentSession();
+        RPC_NotifyMatchFinished(WinnerRawEncoded, WinningScore);
         Debug.Log($"[RaceManager] Race finished. Winner: Player {WinnerRawEncoded} | Score: {WinningScore}");
     }
 
@@ -315,6 +351,15 @@ public class NetworkRaceManager : NetworkBehaviour
             {
                 lastRaceTimeValue = raceTimeValue;
                 raceUI.SetTimerText($"Time: {raceTimeValue}");
+            }
+
+            if (GoMessageTimer.IsRunning && !GoMessageTimer.Expired(Runner))
+            {
+                raceUI.SetCountdownText("GO!");
+            }
+            else
+            {
+                raceUI.SetCountdownText(string.Empty);
             }
         }
     }
