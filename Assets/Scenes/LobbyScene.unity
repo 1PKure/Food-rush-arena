@@ -962,7 +962,7 @@ MonoBehaviour:
   raceSceneName: RaceScene
   maxPlayers: 2
   playerPrefab:
-    RawGuidValue: 61b53448e8a7e654fa435617ce1a4614
+    RawGuidValue: 2e1e267b3d5fd4b46952cbb944d32682
   lobbyUI: {fileID: 1725762807}
 --- !u!4 &667431089
 Transform:

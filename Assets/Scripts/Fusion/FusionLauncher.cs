@@ -300,10 +300,29 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
     private Vector3 GetSpawnPosition(PlayerRef player)
     {
-        int index = Mathf.Abs(player.RawEncoded) % maxPlayers;
-        float spacing = 2.5f;
+        int index = GetPlayerSpawnIndex(player);
 
-        return new Vector3(index * spacing, 0.5f, 0f);
+        float spacing = 5f;
+        float spawnHeight = 0.20f;
+
+        return new Vector3(index * spacing, spawnHeight, 0f);
+    }
+
+    private int GetPlayerSpawnIndex(PlayerRef player)
+    {
+        int index = 0;
+
+        foreach (PlayerRef currentPlayer in runner.ActivePlayers)
+        {
+            if (currentPlayer == player)
+            {
+                return index;
+            }
+
+            index++;
+        }
+
+        return 0;
     }
 
     public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList)
@@ -320,19 +339,38 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnInput(NetworkRunner runner, NetworkInput input)
     {
-        PlayerInputData data = new PlayerInputData();
+        CarInputData data = new CarInputData();
 
-        Vector2 moveInput = Vector2.zero;
+        float throttle = 0f;
+        float steering = 0f;
 
-        if (Input.GetKey(KeyCode.W)) moveInput.y += 1f;
-        if (Input.GetKey(KeyCode.S)) moveInput.y -= 1f;
-        if (Input.GetKey(KeyCode.A)) moveInput.x -= 1f;
-        if (Input.GetKey(KeyCode.D)) moveInput.x += 1f;
+        if (Input.GetKey(KeyCode.W))
+        {
+            throttle += 1f;
+        }
 
-        data.Move = moveInput.normalized;
+        if (Input.GetKey(KeyCode.S))
+        {
+            throttle -= 1f;
+        }
+
+        if (Input.GetKey(KeyCode.A))
+        {
+            steering -= 1f;
+        }
+
+        if (Input.GetKey(KeyCode.D))
+        {
+            steering += 1f;
+        }
+
+        data.Throttle = Mathf.Clamp(throttle, -1f, 1f);
+        data.Steering = Mathf.Clamp(steering, -1f, 1f);
+
+        data.Buttons.Set((int)CarInputButton.Handbrake, Input.GetKey(KeyCode.Space));
+
         input.Set(data);
     }
-
     public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
         Debug.Log($"[Fusion] Shutdown: {shutdownReason}");
