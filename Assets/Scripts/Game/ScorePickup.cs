@@ -59,7 +59,7 @@ public class ScorePickup : NetworkBehaviour
             return;
         }
 
-        PlayerMovement player = other.GetComponentInParent<PlayerMovement>();
+        NetworkCarMovement player = other.GetComponentInParent<NetworkCarMovement>();
 
         if (player == null || player.Object == null)
         {
@@ -88,7 +88,7 @@ public class ScorePickup : NetworkBehaviour
             return;
         }
 
-        PlayerMovement player = FindPlayerByRef(playerRef);
+        NetworkCarMovement player = FindPlayerByRef(playerRef);
 
         if (player == null)
         {
@@ -120,11 +120,11 @@ public class ScorePickup : NetworkBehaviour
         }
     }
 
-    private PlayerMovement FindPlayerByRef(PlayerRef playerRef)
+    private NetworkCarMovement FindPlayerByRef(PlayerRef playerRef)
     {
-        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None);
+        NetworkCarMovement[] players = FindObjectsByType<NetworkCarMovement>(FindObjectsSortMode.None);
 
-        foreach (PlayerMovement player in players)
+        foreach (NetworkCarMovement player in players)
         {
             if (player == null || player.Object == null)
             {

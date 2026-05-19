@@ -184,12 +184,12 @@ public class NetworkRaceManager : NetworkBehaviour
             return;
         }
 
-        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None);
+        NetworkCarMovement[] players = FindObjectsByType<NetworkCarMovement>(FindObjectsSortMode.None);
 
-        PlayerMovement winner = null;
+        NetworkCarMovement winner = null;
         int highestScore = int.MinValue;
 
-        foreach (PlayerMovement player in players)
+        foreach (NetworkCarMovement player in players)
         {
             if (player == null || player.Object == null)
             {
@@ -248,9 +248,9 @@ public class NetworkRaceManager : NetworkBehaviour
         CurrentState = RaceState.Finished;
         WinnerRawEncoded = player.RawEncoded;
 
-        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None);
+        NetworkCarMovement[] players = FindObjectsByType<NetworkCarMovement>(FindObjectsSortMode.None);
 
-        foreach (PlayerMovement playerMovement in players)
+        foreach (NetworkCarMovement playerMovement in players)
         {
             if (playerMovement == null || playerMovement.Object == null)
             {

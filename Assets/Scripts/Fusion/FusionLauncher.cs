@@ -302,8 +302,8 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
     {
         int index = GetPlayerSpawnIndex(player);
 
-        float spacing = 5f;
-        float spawnHeight = 0.20f;
+        float spacing = 8f;
+        float spawnHeight = 0.05f;
 
         return new Vector3(index * spacing, spawnHeight, 0f);
     }
@@ -349,11 +349,6 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             throttle += 1f;
         }
 
-        if (Input.GetKey(KeyCode.S))
-        {
-            throttle -= 1f;
-        }
-
         if (Input.GetKey(KeyCode.A))
         {
             steering -= 1f;
@@ -368,6 +363,7 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
         data.Steering = Mathf.Clamp(steering, -1f, 1f);
 
         data.Buttons.Set((int)CarInputButton.Handbrake, Input.GetKey(KeyCode.Space));
+        data.Buttons.Set((int)CarInputButton.Brake, Input.GetKey(KeyCode.S));
 
         input.Set(data);
     }

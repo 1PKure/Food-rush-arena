@@ -2,7 +2,8 @@ using Fusion;
 
 public enum CarInputButton
 {
-    Handbrake = 0
+    Brake = 0,
+    Handbrake = 1
 }
 
 public struct CarInputData : INetworkInput

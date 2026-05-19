@@ -11,7 +11,7 @@ public class RaceUI : MonoBehaviour
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private Button backToLobbyButton;
     [SerializeField] private TMP_Text feedbackText;
-    private PlayerMovement localPlayer;
+    private NetworkCarMovement localPlayer;
     private bool isLeavingRoom;
 
     private void Awake()
@@ -76,9 +76,9 @@ public class RaceUI : MonoBehaviour
 
     private void FindLocalPlayer()
     {
-        PlayerMovement[] players = FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None);
+        NetworkCarMovement[] players = FindObjectsByType<NetworkCarMovement>(FindObjectsSortMode.None);
 
-        foreach (PlayerMovement player in players)
+        foreach (NetworkCarMovement player in players)
         {
             if (player == null || player.Object == null)
             {

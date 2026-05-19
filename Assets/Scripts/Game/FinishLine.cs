@@ -5,7 +5,7 @@ public class FinishLine : MonoBehaviour
 {
     private void OnTriggerEnter(Collider other)
     {
-        PlayerMovement playerMovement = other.GetComponentInParent<PlayerMovement>();
+        NetworkCarMovement playerMovement = other.GetComponentInParent<NetworkCarMovement>();
 
         if (playerMovement == null)
         {
