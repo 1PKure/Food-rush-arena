@@ -24,6 +24,8 @@ public class NetworkCarMovement : NetworkBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs;
 
+    [Header("Steering")]
+    [SerializeField] private bool invertSteering = true;
     [Networked] public int Score { get; private set; }
     [Networked] public float CurrentSpeed { get; private set; }
     [Networked] public bool IsAccelerating { get; private set; }
@@ -166,25 +168,27 @@ public class NetworkCarMovement : NetworkBehaviour
             return;
         }
 
-        float speedFactor = Mathf.InverseLerp(0f, maxForwardSpeed, CurrentSpeed);
-        speedFactor = Mathf.Clamp01(speedFactor);
+        float finalSteering = invertSteering ? -steering : steering;
 
-        float handbrakeMultiplier = handbrake ? 1.25f : 1f;
+        float speedFactor = Mathf.InverseLerp(0f, maxForwardSpeed, CurrentSpeed);
+        speedFactor = Mathf.Clamp(speedFactor, 0.25f, 0.75f);
+
+        float handbrakeMultiplier = handbrake ? 1.1f : 1f;
 
         float rotationAmount =
-    steering *
-    steeringSpeed *
-    speedFactor *
-    handbrakeMultiplier *
-    Runner.DeltaTime;
+            finalSteering *
+            steeringSpeed *
+            speedFactor *
+            handbrakeMultiplier *
+            Runner.DeltaTime;
 
-        rotationAmount = Mathf.Clamp(rotationAmount, -2.5f, 2.5f);
+        rotationAmount = Mathf.Clamp(rotationAmount, -2f, 2f);
 
         transform.Rotate(0f, rotationAmount, 0f);
     }
     private void MoveCar()
     {
-        Vector3 movement = transform.forward * CurrentSpeed;
+        Vector3 movement = transform.forward * CurrentSpeed * Runner.DeltaTime;
         networkCharacterController.Move(movement);
     }
 

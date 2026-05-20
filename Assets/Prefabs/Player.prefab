@@ -73,6 +73,7 @@ Transform:
   - {fileID: 6399581921715410368}
   - {fileID: 901333272}
   - {fileID: 3741983705496012052}
+  - {fileID: 2867316559707299870}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3246261449343479273
@@ -116,12 +117,12 @@ CharacterController:
   m_Enabled: 1
   serializedVersion: 3
   m_Height: 0.7
-  m_Radius: 1
+  m_Radius: 0.45
   m_SlopeLimit: 45
-  m_StepOffset: 0.3
+  m_StepOffset: 0.15
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.35, z: 1.51}
+  m_Center: {x: 0, y: 0.35, z: 0}
 --- !u!114 &1423610420366970091
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -137,10 +138,10 @@ MonoBehaviour:
   _stateAuthorityChangeErrorCorrectionDelta: 0
   gravity: -20
   jumpImpulse: 0
-  acceleration: 28
-  braking: 30
-  maxSpeed: 18
-  rotationSpeed: 100
+  acceleration: 40
+  braking: 60
+  maxSpeed: 14
+  rotationSpeed: 0
 --- !u!114 &8692610460667022316
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -169,13 +170,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 472e70c43de97c94db5ae1860be23a64, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxForwardSpeed: 12
+  maxForwardSpeed: 10
   maxReverseSpeed: 2
-  acceleration: 18
-  braking: 35
-  naturalDeceleration: 10
-  steeringSpeed: 90
-  minimumSpeedToSteer: 0.4
+  acceleration: 16
+  braking: 55
+  naturalDeceleration: 35
+  steeringSpeed: 65
+  minimumSpeedToSteer: 0.5
   frontLeftWheel: {fileID: 1276657636418845578}
   frontRightWheel: {fileID: 2897099083007925690}
   rearLeftWheel: {fileID: 6528361102885328038}
@@ -183,6 +184,7 @@ MonoBehaviour:
   wheelRotationSpeed: 900
   frontWheelSteeringAngle: 30
   showDebugLogs: 0
+  invertSteering: 1
   _Score: 0
   _CurrentSpeed: 0
   _IsAccelerating: 0
@@ -885,6 +887,59 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
+--- !u!1 &6001699213695598964
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2867316559707299870}
+  - component: {fileID: 8033256739957157046}
+  m_Layer: 0
+  m_Name: CarBoundsTrigger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2867316559707299870
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6001699213695598964}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.642, z: 0}
+  m_LocalScale: {x: 1.8625, y: 0.89899, z: 4.8580537}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 261786959625234688}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &8033256739957157046
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6001699213695598964}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6140585299737009323
 GameObject:
   m_ObjectHideFlags: 0
