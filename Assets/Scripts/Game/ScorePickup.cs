@@ -9,24 +9,58 @@ public class ScorePickup : NetworkBehaviour
     [Header("Score")]
     [SerializeField] private int scoreAmount = 1;
 
-    [Header("Respawn")]
-    [SerializeField] private float respawnDelay = 5f;
-
     [Header("References")]
     [SerializeField] private GameObject visualRoot;
     [SerializeField] private Collider pickupCollider;
 
-    [Networked] private bool IsAvailable { get; set; }
-    [Networked] private TickTimer RespawnTimer { get; set; }
+    [Header("Animation")]
+    [SerializeField] private Animator animator;
+    [SerializeField] private NetworkMecanimAnimator networkMecanimAnimator;
+    [SerializeField] private string collectTriggerName = "Collect";
+
+    [Header("Despawn")]
+    [SerializeField] private float despawnDelay = 0.65f;
+
+    [Header("Debug")]
+    [SerializeField] private bool showDebugLogs = false;
+
+    [Networked] private NetworkBool IsCollected { get; set; }
+    [Networked] private TickTimer DespawnTimer { get; set; }
+
+    private NetworkPickupSpawner ownerSpawner;
+
+    private Vector3 initialVisualLocalPosition;
+    private Quaternion initialVisualLocalRotation;
+    private Vector3 initialVisualLocalScale;
+
+    private void Awake()
+    {
+        if (pickupCollider == null)
+        {
+            pickupCollider = GetComponent<Collider>();
+        }
+
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
+
+        if (networkMecanimAnimator == null)
+        {
+            networkMecanimAnimator = GetComponentInChildren<NetworkMecanimAnimator>();
+        }
+
+        CacheInitialVisualTransform();
+    }
 
     public override void Spawned()
     {
         if (Object.HasStateAuthority)
         {
-            IsAvailable = true;
+            IsCollected = false;
         }
 
-        UpdateVisualState();
+        ResetVisualState();
     }
 
     public override void FixedUpdateNetwork()
@@ -36,43 +70,62 @@ public class ScorePickup : NetworkBehaviour
             return;
         }
 
-        if (IsAvailable)
+        if (!IsCollected)
         {
             return;
         }
 
-        if (RespawnTimer.Expired(Runner))
+        if (!DespawnTimer.Expired(Runner))
         {
-            IsAvailable = true;
+            return;
         }
+
+        if (ownerSpawner != null)
+        {
+            ownerSpawner.NotifyPickupDespawned(this);
+        }
+
+        Runner.Despawn(Object);
     }
 
-    public override void Render()
+    public void Initialize(NetworkPickupSpawner spawner)
     {
-        UpdateVisualState();
+        ownerSpawner = spawner;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!IsAvailable)
+        NetworkCarMovement player = other.GetComponentInParent<NetworkCarMovement>();
+
+        if (player == null)
         {
             return;
         }
 
-        NetworkCarMovement player = other.GetComponentInParent<NetworkCarMovement>();
+        TryCollect(player);
+    }
+
+    public void TryCollect(NetworkCarMovement player)
+    {
+        if (IsCollected)
+        {
+            return;
+        }
 
         if (player == null || player.Object == null)
         {
             return;
         }
 
+        PlayerRef playerRef = player.Object.InputAuthority;
+
         if (Object.HasStateAuthority)
         {
-            Collect(player.Object.InputAuthority);
+            Collect(playerRef);
             return;
         }
 
-        RPC_RequestCollect(player.Object.InputAuthority);
+        RPC_RequestCollect(playerRef);
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -83,7 +136,12 @@ public class ScorePickup : NetworkBehaviour
 
     private void Collect(PlayerRef playerRef)
     {
-        if (!IsAvailable)
+        if (!Object.HasStateAuthority)
+        {
+            return;
+        }
+
+        if (IsCollected)
         {
             return;
         }
@@ -97,12 +155,37 @@ public class ScorePickup : NetworkBehaviour
 
         player.AddScore(scoreAmount);
 
-        IsAvailable = false;
-        RespawnTimer = TickTimer.CreateFromSeconds(Runner, respawnDelay);
+        IsCollected = true;
+
+        if (pickupCollider != null)
+        {
+            pickupCollider.enabled = false;
+        }
+
+        PlayCollectAnimation();
+
+        DespawnTimer = TickTimer.CreateFromSeconds(Runner, despawnDelay);
 
         RPC_NotifyPickupCollected(playerRef.RawEncoded, pickupName, scoreAmount);
 
-        Debug.Log($"Player {playerRef.RawEncoded} collected {pickupName}. Score {FormatScore(scoreAmount)}");
+        if (showDebugLogs)
+        {
+            Debug.Log($"[ScorePickup] Player {playerRef.RawEncoded} collected {pickupName}. Score {FormatScore(scoreAmount)}");
+        }
+    }
+
+    private void PlayCollectAnimation()
+    {
+        if (networkMecanimAnimator != null)
+        {
+            networkMecanimAnimator.SetTrigger(collectTriggerName);
+            return;
+        }
+
+        if (animator != null)
+        {
+            animator.SetTrigger(collectTriggerName);
+        }
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
@@ -110,13 +193,16 @@ public class ScorePickup : NetworkBehaviour
     {
         string formattedScore = FormatScore(collectedScoreAmount);
 
-        Debug.Log($"[Pickup] Player {playerRawEncoded} collected {collectedPickupName}. Score {formattedScore}");
-
         RaceUI raceUI = FindFirstObjectByType<RaceUI>();
 
         if (raceUI != null)
         {
             raceUI.ShowTemporaryMessage($"Player {playerRawEncoded} collected {collectedPickupName} {formattedScore}");
+        }
+
+        if (showDebugLogs)
+        {
+            Debug.Log($"[Pickup] Player {playerRawEncoded} collected {collectedPickupName}. Score {formattedScore}");
         }
     }
 
@@ -150,18 +236,38 @@ public class ScorePickup : NetworkBehaviour
         return amount.ToString();
     }
 
-    private void UpdateVisualState()
+    private void CacheInitialVisualTransform()
     {
-        bool shouldBeVisible = IsAvailable;
+        if (visualRoot == null)
+        {
+            return;
+        }
 
+        initialVisualLocalPosition = visualRoot.transform.localPosition;
+        initialVisualLocalRotation = visualRoot.transform.localRotation;
+        initialVisualLocalScale = visualRoot.transform.localScale;
+    }
+
+    private void ResetVisualState()
+    {
         if (visualRoot != null)
         {
-            visualRoot.SetActive(shouldBeVisible);
+            visualRoot.SetActive(true);
+            visualRoot.transform.localPosition = initialVisualLocalPosition;
+            visualRoot.transform.localRotation = initialVisualLocalRotation;
+            visualRoot.transform.localScale = initialVisualLocalScale;
         }
 
         if (pickupCollider != null)
         {
-            pickupCollider.enabled = shouldBeVisible;
+            pickupCollider.enabled = true;
+        }
+
+        if (animator != null)
+        {
+            animator.Rebind();
+            animator.Update(0f);
+            animator.Play("Idle", 0, 0f);
         }
     }
 }

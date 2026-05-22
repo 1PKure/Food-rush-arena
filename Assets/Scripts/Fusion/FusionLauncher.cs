@@ -349,6 +349,11 @@ public class FusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             throttle += 1f;
         }
 
+        if (Input.GetKey(KeyCode.S))
+        {
+            throttle -= 1f;
+        }
+
         if (Input.GetKey(KeyCode.A))
         {
             steering -= 1f;

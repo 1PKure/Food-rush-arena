@@ -5,13 +5,20 @@ using UnityEngine;
 public class NetworkCarMovement : NetworkBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float maxForwardSpeed = 12f;
-    [SerializeField] private float maxReverseSpeed = 5f;
-    [SerializeField] private float acceleration = 18f;
-    [SerializeField] private float braking = 24f;
-    [SerializeField] private float naturalDeceleration = 10f;
-    [SerializeField] private float steeringSpeed = 120f;
+    [SerializeField] private float maxForwardSpeed = 6f;
+    [SerializeField] private float acceleration = 10f;
+    [SerializeField] private float braking = 100f;
+    [SerializeField] private float naturalDeceleration = 35f;
+
+    [Header("Steering")]
+    [SerializeField] private float steeringSpeed = 70f;
+    [SerializeField] private float steeringSmoothness = 12f;
     [SerializeField] private float minimumSpeedToSteer = 0.5f;
+    [SerializeField] private bool invertSteering = false;
+
+    [Header("Grounding")]
+    [SerializeField] private bool keepCarGrounded = true;
+    [SerializeField] private float groundStickForce = -2f;
 
     [Header("Visual Wheels")]
     [SerializeField] private Transform frontLeftWheel;
@@ -24,10 +31,9 @@ public class NetworkCarMovement : NetworkBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs;
 
-    [Header("Steering")]
-    [SerializeField] private bool invertSteering = true;
     [Networked] public int Score { get; private set; }
     [Networked] public float CurrentSpeed { get; private set; }
+    [Networked] public float CurrentSteering { get; private set; }
     [Networked] public bool IsAccelerating { get; private set; }
     [Networked] public bool IsBraking { get; private set; }
 
@@ -43,16 +49,18 @@ public class NetworkCarMovement : NetworkBehaviour
 
     public override void Spawned()
     {
-        if (showDebugLogs)
+        if (!showDebugLogs)
         {
-            Debug.Log(
-                $"[NetworkCarMovement] Spawned | " +
-                $"Object: {gameObject.name} | " +
-                $"InputAuthority: {Object.InputAuthority} | " +
-                $"HasInputAuthority: {Object.HasInputAuthority} | " +
-                $"HasStateAuthority: {Object.HasStateAuthority}"
-            );
+            return;
         }
+
+        Debug.Log(
+            $"[NetworkCarMovement] Spawned | " +
+            $"Object: {gameObject.name} | " +
+            $"InputAuthority: {Object.InputAuthority} | " +
+            $"HasInputAuthority: {Object.HasInputAuthority} | " +
+            $"HasStateAuthority: {Object.HasStateAuthority}"
+        );
     }
 
     public override void FixedUpdateNetwork()
@@ -115,27 +123,54 @@ public class NetworkCarMovement : NetworkBehaviour
 
     private void ApplyCarInput(CarInputData input)
     {
-        float throttle = Mathf.Clamp01(input.Throttle);
-        float steering = Mathf.Clamp(input.Steering, -1f, 1f);
+        float rawThrottle = Mathf.Clamp(input.Throttle, -1f, 1f);
+        float throttle = Mathf.Clamp01(rawThrottle);
+        float targetSteering = Mathf.Clamp(input.Steering, -1f, 1f);
 
-        bool brake = input.Buttons.IsSet((int)CarInputButton.Brake);
+        if (invertSteering)
+        {
+            targetSteering *= -1f;
+        }
+
+        bool brake = input.Buttons.IsSet((int)CarInputButton.Brake) || rawThrottle < -0.1f;
         bool handbrake = input.Buttons.IsSet((int)CarInputButton.Handbrake);
 
-        UpdateSpeed(throttle, brake, handbrake);
-        RotateCar(steering, handbrake);
-        MoveCar();
+        if (brake)
+        {
+            CurrentSpeed = 0f;
+            CurrentSteering = 0f;
+
+            IsAccelerating = false;
+            IsBraking = true;
+
+            MoveCar(Vector3.zero);
+            return;
+        }
+
+        UpdateSpeed(throttle, handbrake);
+        UpdateSteering(targetSteering);
+        RotateCar(handbrake);
+
+        Vector3 movement = transform.forward * CurrentSpeed;
+
+        if (keepCarGrounded)
+        {
+            movement.y = groundStickForce;
+        }
+
+        MoveCar(movement);
 
         IsAccelerating = throttle > 0.1f;
-        IsBraking = brake || handbrake;
+        IsBraking = handbrake;
 
         localSteeringVisualAngle = Mathf.Lerp(
             localSteeringVisualAngle,
-            steering * frontWheelSteeringAngle,
+            CurrentSteering * frontWheelSteeringAngle,
             Runner.DeltaTime * 10f
         );
     }
 
-    private void UpdateSpeed(float throttle, bool brake, bool handbrake)
+    private void UpdateSpeed(float throttle, bool handbrake)
     {
         float deltaTime = Runner.DeltaTime;
 
@@ -145,58 +180,92 @@ public class NetworkCarMovement : NetworkBehaviour
         }
         else
         {
-            CurrentSpeed = Mathf.MoveTowards(CurrentSpeed, 0f, naturalDeceleration * deltaTime);
-        }
-
-        if (brake)
-        {
-            CurrentSpeed = Mathf.MoveTowards(CurrentSpeed, 0f, braking * deltaTime);
+            CurrentSpeed = Mathf.MoveTowards(
+                CurrentSpeed,
+                0f,
+                naturalDeceleration * deltaTime
+            );
         }
 
         if (handbrake)
         {
-            CurrentSpeed = Mathf.MoveTowards(CurrentSpeed, 0f, braking * 0.75f * deltaTime);
+            CurrentSpeed = Mathf.MoveTowards(
+                CurrentSpeed,
+                0f,
+                braking * deltaTime
+            );
+        }
+
+        if (CurrentSpeed < 0.05f)
+        {
+            CurrentSpeed = 0f;
         }
 
         CurrentSpeed = Mathf.Clamp(CurrentSpeed, 0f, maxForwardSpeed);
     }
 
-    private void RotateCar(float steering, bool handbrake)
+    private void UpdateSteering(float targetSteering)
+    {
+        if (CurrentSpeed < minimumSpeedToSteer)
+        {
+            targetSteering = 0f;
+        }
+
+        CurrentSteering = Mathf.Lerp(
+            CurrentSteering,
+            targetSteering,
+            Runner.DeltaTime * steeringSmoothness
+        );
+
+        if (Mathf.Abs(CurrentSteering) < 0.01f)
+        {
+            CurrentSteering = 0f;
+        }
+    }
+
+    private void RotateCar(bool handbrake)
     {
         if (CurrentSpeed < minimumSpeedToSteer)
         {
             return;
         }
 
-        float finalSteering = invertSteering ? -steering : steering;
-
         float speedFactor = Mathf.InverseLerp(0f, maxForwardSpeed, CurrentSpeed);
-        speedFactor = Mathf.Clamp(speedFactor, 0.25f, 0.75f);
+        speedFactor = Mathf.Clamp(speedFactor, 0.35f, 1f);
 
         float handbrakeMultiplier = handbrake ? 1.1f : 1f;
 
         float rotationAmount =
-            finalSteering *
+            CurrentSteering *
             steeringSpeed *
             speedFactor *
             handbrakeMultiplier *
             Runner.DeltaTime;
 
-        rotationAmount = Mathf.Clamp(rotationAmount, -2f, 2f);
-
-        transform.Rotate(0f, rotationAmount, 0f);
+        transform.Rotate(0f, rotationAmount, 0f, Space.World);
     }
-    private void MoveCar()
+
+    private void MoveCar(Vector3 movement)
     {
-        Vector3 movement = transform.forward * CurrentSpeed * Runner.DeltaTime;
         networkCharacterController.Move(movement);
     }
 
     private void ApplyStop()
     {
-        CurrentSpeed = Mathf.MoveTowards(CurrentSpeed, 0f, braking * Runner.DeltaTime);
-        Vector3 movement = transform.forward * CurrentSpeed * Runner.DeltaTime;
-        networkCharacterController.Move(movement);
+        CurrentSpeed = 0f;
+        CurrentSteering = 0f;
+
+        Vector3 movement = Vector3.zero;
+
+        if (keepCarGrounded)
+        {
+            movement.y = groundStickForce;
+        }
+
+        MoveCar(movement);
+
+        IsAccelerating = false;
+        IsBraking = true;
     }
 
     private void AnimateWheels()
@@ -218,11 +287,13 @@ public class NetworkCarMovement : NetworkBehaviour
 
         wheel.Rotate(Vector3.right, rotationAmount, Space.Self);
 
-        if (canSteer)
+        if (!canSteer)
         {
-            Vector3 localEulerAngles = wheel.localEulerAngles;
-            localEulerAngles.y = localSteeringVisualAngle;
-            wheel.localEulerAngles = localEulerAngles;
+            return;
         }
+
+        Vector3 localEulerAngles = wheel.localEulerAngles;
+        localEulerAngles.y = localSteeringVisualAngle;
+        wheel.localEulerAngles = localEulerAngles;
     }
 }
